@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ invoice.number }} | SwiftInvoice{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>
+    Invoice {{ invoice.number }}
+    {% if invoice.is_overdue %}<span class="badge badge-overdue">Overdue</span>
+    {% else %}<span class="badge badge-{{ invoice.status }}">{{ invoice.get_status_display }}</span>{% endif %}
+  </h1>
+  <div class="actions">
+    <a href="{% url 'invoice_pdf' invoice.pk %}" class="btn">Download PDF</a>
+    <a href="{% url 'invoice_edit' invoice.pk %}" class="btn btn-secondary">Edit</a>
+    {% if invoice.status == 'draft' %}
+    <form method="post" action="{% url 'invoice_mark_sent' invoice.pk %}" class="inline-form">
+      {% csrf_token %}
+      <button type="submit" class="btn">Mark as sent</button>
+    </form>
+    {% endif %}
+    {% if invoice.balance > 0 %}
+    <a href="{% url 'payment_add' invoice.pk %}" class="btn btn-success">Record payment</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="detail-grid">
+  <div class="card detail-card">
+    <h3>Billed to</h3>
+    <p>
+      <strong>{{ invoice.client.name }}</strong><br>
+      {% if invoice.client.address %}{{ invoice.client.address|linebreaksbr }}<br>{% endif %}
+      {% if invoice.client.phone %}{{ invoice.client.phone }}<br>{% endif %}
+      {% if invoice.client.email %}{{ invoice.client.email }}{% endif %}
+    </p>
+  </div>
+  <div class="card detail-card">
+    <h3>Details</h3>
+    <p>
+      Issued: <strong>{{ invoice.issue_date|date:"d M Y" }}</strong><br>
+      Due: <strong>{{ invoice.due_date|date:"d M Y" }}</strong><br>
+      VAT: <strong>{% if invoice.vat_enabled %}{{ invoice.business.vat_rate }}%{% else %}Not applied{% endif %}</strong>
+    </p>
+  </div>
+</div>
+
+{% if invoice.items.all %}
+<table class="table">
+  <thead>
+    <tr><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th></tr>
+  </thead>
+  <tbody>
+    {% for item in invoice.items.all %}
+    <tr>
+      <td>{{ item.description }}</td>
+      <td class="num">{{ item.quantity }}</td>
+      <td class="num">{{ item.unit_price|floatformat:2 }}</td>
+      <td class="num">{{ item.line_total_display }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<div class="totals-card card">
+  <table class="totals-table">
+    <tr><td>Subtotal</td><td>{{ invoice.subtotal_display }}</td></tr>
+    {% if invoice.vat_enabled %}
+    <tr><td>VAT ({{ invoice.business.vat_rate }}%)</td><td>{{ invoice.vat_display }}</td></tr>
+    {% endif %}
+    <tr class="grand-total"><td>Total</td><td>{{ invoice.total_display }}</td></tr>
+    <tr><td>Paid</td><td>{{ invoice.amount_paid_display }}</td></tr>
+    <tr class="balance-row"><td>Balance due</td><td>{{ invoice.balance_display }}</td></tr>
+  </table>
+</div>
+
+{% if invoice.notes %}
+<div class="card detail-card"><h3>Notes</h3>{{ invoice.notes|linebreaksbr }}</div>
+{% endif %}
+
+<h2>Payments</h2>
+{% if invoice.payments.all %}
+<table class="table">
+  <thead><tr><th>Date</th><th class="num">Amount</th><th>Method</th><th>Reference</th></tr></thead>
+  <tbody>
+    {% for payment in invoice.payments.all %}
+    <tr>
+      <td>{{ payment.date|date:"d M Y" }}</td>
+      <td class="num">{{ payment.amount_display }}</td>
+      <td>{{ payment.get_method_display }}</td>
+      <td>{{ payment.reference|default:"-" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No payments recorded yet.</p>
+{% endif %}
+
+<form method="post" action="{% url 'invoice_delete' invoice.pk %}" class="inline-form"
+      onsubmit="return confirm('Delete invoice {{ invoice.number }}? This cannot be undone.');">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-danger">Delete invoice</button>
+</form>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Invoices | SwiftInvoice{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Invoices</h1>
+  <a href="{% url 'invoice_create' %}" class="btn">+ New invoice</a>
+</div>
+
+<div class="filter-bar">
+  <div class="tabs">
+    <a href="{% url 'invoice_list' %}{% if q %}?q={{ q }}{% endif %}"
+       class="{% if not status %}active{% endif %}">All</a>
+    <a href="{% url 'invoice_list' %}?status=draft{% if q %}&q={{ q }}{% endif %}"
+       class="{% if status == 'draft' %}active{% endif %}">Draft</a>
+    <a href="{% url 'invoice_list' %}?status=sent{% if q %}&q={{ q }}{% endif %}"
+       class="{% if status == 'sent' %}active{% endif %}">Sent</a>
+    <a href="{% url 'invoice_list' %}?status=paid{% if q %}&q={{ q }}{% endif %}"
+       class="{% if status == 'paid' %}active{% endif %}">Paid</a>
+    <a href="{% url 'invoice_list' %}?status=overdue{% if q %}&q={{ q }}{% endif %}"
+       class="{% if status == 'overdue' %}active{% endif %}">Overdue</a>
+  </div>
+  <form method="get" class="search-form">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search number or client">
+    <input type="hidden" name="status" value="{{ status }}">
+    <button type="submit" class="btn btn-small">Search</button>
+  </form>
+</div>
+
+{% if invoices %}
+<table class="table">
+  <thead>
+    <tr>
+      <th>Number</th><th>Client</th><th>Issue date</th><th>Due date</th>
+      <th class="num">Total</th><th class="num">Balance</th><th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for invoice in invoices %}
+    <tr>
+      <td><a href="{% url 'invoice_detail' invoice.pk %}">{{ invoice.number }}</a></td>
+      <td>{{ invoice.client.name }}</td>
+      <td>{{ invoice.issue_date|date:"d M Y" }}</td>
+      <td>{{ invoice.due_date|date:"d M Y" }}</td>
+      <td class="num">{{ invoice.total_display }}</td>
+      <td class="num">{{ invoice.balance_display }}</td>
+      <td>
+        {% if invoice.is_overdue %}<span class="badge badge-overdue">Overdue</span>
+        {% else %}<span class="badge badge-{{ invoice.status }}">{{ invoice.get_status_display }}</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No invoices found.</p>
+{% endif %}
+{% endblock %}

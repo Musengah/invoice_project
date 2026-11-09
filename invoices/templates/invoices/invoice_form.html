@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} | SwiftInvoice{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+<form method="post" class="card form-card">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <h3>Line items</h3>
+  {{ formset.management_form }}
+  {% if formset.non_form_errors %}
+    <div class="alert error">{{ formset.non_form_errors }}</div>
+  {% endif %}
+  <table class="table item-table" id="item-table">
+    <thead>
+      <tr>
+        <th>Description</th><th>Qty</th><th>Unit price</th><th>Remove</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item_form in formset.forms %}
+      <tr class="item-row">
+        {% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}
+        <td>{{ item_form.description }}</td>
+        <td>{{ item_form.quantity }}</td>
+        <td>{{ item_form.unit_price }}</td>
+        <td>{{ item_form.DELETE }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="form-actions">
+    <button type="button" id="add-item-row" class="btn btn-secondary">+ Add item</button>
+    <button type="submit" class="btn">Save invoice</button>
+    <a href="{% url 'invoice_list' %}" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+
+<script>
+document.getElementById("add-item-row").addEventListener("click", function () {
+  var tableBody = document.querySelector("#item-table tbody");
+  var template = document.querySelector(".item-row");
+  var totalInput = document.getElementById("id_form-TOTAL_FORMS");
+  var index = parseInt(totalInput.value, 10);
+  var row = template.cloneNode(true);
+  row.innerHTML = row.innerHTML.replace(/form-(\d+|__prefix__)-/g, "form-" + index + "-");
+  row.querySelectorAll("input").forEach(function (el) {
+    if (el.type === "checkbox") { el.checked = false; } else { el.value = ""; }
+  });
+  tableBody.appendChild(row);
+  totalInput.value = index + 1;
+});
+</script>
+{% endblock %}

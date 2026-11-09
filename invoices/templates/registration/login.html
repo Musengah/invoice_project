@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Log in | SwiftInvoice{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <h1>Log in</h1>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-block">Log in</button>
+  </form>
+  <p class="auth-alt">New here? <a href="{% url 'signup' %}">Create an account</a></p>
+</div>
+{% endblock %}

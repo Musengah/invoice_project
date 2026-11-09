@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} | SwiftInvoice{% endblock %}
+{% block content %}
+<div class="card form-card">
+  <h1>{{ title }}</h1>
+  <p>Are you sure you want to delete <strong>{{ object }}</strong>? This cannot be undone.</p>
+  <div class="form-actions">
+    <form method="post" class="inline-form">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Yes, delete</button>
+    </form>
+    <a href="{% url cancel_url_name %}" class="btn btn-secondary">Cancel</a>
+  </div>
+</div>
+{% endblock %}

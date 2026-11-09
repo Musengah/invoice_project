@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{{ invoice.number }}</title>
+<style>
+  @page { size: a4 portrait; margin: 1.8cm; }
+  body { font-family: helvetica; font-size: 10pt; color: #222222; }
+  h1 { font-size: 15pt; margin: 0; }
+  h2 { font-size: 11pt; margin: 0; }
+  .muted { color: #666666; font-size: 9pt; }
+  .layout { width: 100%; }
+  .layout td { vertical-align: top; }
+  .right { text-align: right; }
+  .section { margin-top: 22px; }
+  .items { width: 100%; margin-top: 6px; border: 1px solid #cccccc; }
+  .items th { background-color: #eeeeee; padding: 6px; font-size: 9pt; text-align: left; border: 1px solid #cccccc; }
+  .items td { padding: 6px; font-size: 9.5pt; border: 1px solid #cccccc; }
+  .totals { width: 100%; margin-top: 10px; }
+  .totals td { padding: 3px 6px; font-size: 10pt; }
+  .balance { font-size: 12pt; font-weight: bold; }
+</style>
+</head>
+<body>
+<table class="layout">
+  <tr>
+    <td>
+      {% if logo_path %}<img src="{{ logo_path }}" width="140"><br><br>{% endif %}
+      <h1>{{ invoice.business.name }}</h1>
+      <div class="muted">{{ invoice.business.address }}</div>
+      <div class="muted">{{ invoice.business.phone }}{% if invoice.business.email %} | {{ invoice.business.email }}{% endif %}</div>
+    </td>
+    <td class="right">
+      <h1>INVOICE</h1>
+      <div><strong>{{ invoice.number }}</strong></div>
+      <div class="muted">Issued: {{ invoice.issue_date|date:"d F Y" }}</div>
+      <div class="muted">Due: {{ invoice.due_date|date:"d F Y" }}</div>
+    </td>
+  </tr>
+</table>
+
+<div class="section">
+  <h2>Billed to</h2>
+  {{ invoice.client.name }}<br>
+  {% if invoice.client.address %}{{ invoice.client.address }}<br>{% endif %}
+  {% if invoice.client.phone %}{{ invoice.client.phone }}<br>{% endif %}
+  {% if invoice.client.email %}{{ invoice.client.email }}{% endif %}
+</div>
+
+<div class="section"></div>
+<table class="items">
+  <tr>
+    <th style="width: 55%">Description</th>
+    <th style="width: 12%">Qty</th>
+    <th style="width: 17%">Unit price</th>
+    <th style="width: 16%">Amount</th>
+  </tr>
+  {% for item in invoice.items.all %}
+  <tr>
+    <td>{{ item.description }}</td>
+    <td>{{ item.quantity }}</td>
+    <td class="right">{{ item.unit_price|floatformat:2 }}</td>
+    <td class="right">{{ item.line_total_display }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<table class="totals">
+  <tr>
+    <td></td><td></td>
+    <td class="right" style="width: 60%">Subtotal</td>
+    <td class="right" style="width: 20%">{{ invoice.subtotal_display }}</td>
+  </tr>
+  {% if invoice.vat_enabled %}
+  <tr>
+    <td></td><td></td>
+    <td class="right">VAT ({{ invoice.business.vat_rate }}%)</td>
+    <td class="right">{{ invoice.vat_display }}</td>
+  </tr>
+  {% endif %}
+  <tr>
+    <td></td><td></td>
+    <td class="right"><strong>Total</strong></td>
+    <td class="right"><strong>{{ invoice.total_display }}</strong></td>
+  </tr>
+  <tr>
+    <td></td><td></td>
+    <td class="right">Paid</td>
+    <td class="right">{{ invoice.amount_paid_display }}</td>
+  </tr>
+  <tr>
+    <td></td><td></td>
+    <td class="right balance">Balance due</td>
+    <td class="right balance">{{ invoice.balance_display }}</td>
+  </tr>
+</table>
+
+{% if invoice.business.payment_details %}
+<div class="section">
+  <h2>Payment details</h2>
+  <div class="muted">{{ invoice.business.payment_details }}</div>
+</div>
+{% endif %}
+
+{% if invoice.notes %}
+<div class="section">
+  <h2>Notes</h2>
+  <div class="muted">{{ invoice.notes }}</div>
+</div>
+{% endif %}
+
+{% if invoice.business.footer_note %}
+<div class="section muted">{{ invoice.business.footer_note }}</div>
+{% endif %}
+</body>
+</html>

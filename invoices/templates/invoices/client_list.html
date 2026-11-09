@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Clients | SwiftInvoice{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Clients</h1>
+  <a href="{% url 'client_create' %}" class="btn">+ New client</a>
+</div>
+{% if clients %}
+<table class="table">
+  <thead>
+    <tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th class="actions-col">Actions</th></tr>
+  </thead>
+  <tbody>
+    {% for client in clients %}
+    <tr>
+      <td>{{ client.name }}</td>
+      <td>{{ client.email|default:"-" }}</td>
+      <td>{{ client.phone|default:"-" }}</td>
+      <td class="muted-cell">{{ client.address|linebreaksbr|default:"-" }}</td>
+      <td class="actions-col">
+        <a class="btn btn-small" href="{% url 'invoice_create' %}">Invoice</a>
+        <a class="btn btn-small btn-secondary" href="{% url 'client_edit' client.pk %}">Edit</a>
+        <form method="post" action="{% url 'client_delete' client.pk %}" class="inline-form"
+              onsubmit="return confirm('Delete {{ client.name }}? Invoices for this client will be kept.');">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-small btn-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No clients yet.</p>
+{% endif %}
+{% endblock %}

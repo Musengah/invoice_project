@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | SwiftInvoice{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Dashboard</h1>
+  <div class="actions">
+    <a href="{% url 'invoice_create' %}" class="btn">+ New invoice</a>
+    <a href="{% url 'client_create' %}" class="btn btn-secondary">+ New client</a>
+  </div>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Outstanding (sent)</div>
+    <div class="stat-value">{{ outstanding_display }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Overdue invoices</div>
+    <div class="stat-value {% if overdue_count %}stat-danger{% endif %}">{{ overdue_count }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Paid this month</div>
+    <div class="stat-value">{{ paid_this_month_display }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Clients</div>
+    <div class="stat-value">{{ client_count }}</div>
+  </div>
+</div>
+
+<h2>Recent invoices</h2>
+{% if recent_invoices %}
+<table class="table">
+  <thead>
+    <tr>
+      <th>Number</th><th>Client</th><th>Issue date</th><th>Due date</th>
+      <th class="num">Total</th><th class="num">Balance</th><th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for invoice in recent_invoices %}
+    <tr>
+      <td><a href="{% url 'invoice_detail' invoice.pk %}">{{ invoice.number }}</a></td>
+      <td>{{ invoice.client.name }}</td>
+      <td>{{ invoice.issue_date|date:"d M Y" }}</td>
+      <td>{{ invoice.due_date|date:"d M Y" }}</td>
+      <td class="num">{{ invoice.total_display }}</td>
+      <td class="num">{{ invoice.balance_display }}</td>
+      <td>
+        {% if invoice.is_overdue %}<span class="badge badge-overdue">Overdue</span>
+        {% else %}<span class="badge badge-{{ invoice.status }}">{{ invoice.get_status_display }}</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No invoices yet. Create your first one!</p>
+{% endif %}
+{% endblock %}

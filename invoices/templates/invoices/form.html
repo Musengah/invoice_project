@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} | SwiftInvoice{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+<form method="post" enctype="multipart/form-data" class="card form-card">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <div class="form-actions">
+    <button type="submit" class="btn">{{ submit_label|default:"Save" }}</button>
+    <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}
