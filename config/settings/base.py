@@ -1,7 +1,11 @@
 import os
 from pathlib import Path
-import dj_database_url
+
 from dotenv import load_dotenv
+
+# Read a local .env file if present (development convenience).
+# Harmless in production, where environment variables come from the host.
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -78,24 +82,3 @@ DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@example.com")
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "dashboard"
 LOGOUT_REDIRECT_URL = "login"
-
-# ======================================================================
-# FILE: config/settings/dev.py
-# ======================================================================
-from .base import *  # noqa: F401,F403
-
-DEBUG = True
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
-
-load_dotenv()
-
-DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
-        conn_max_age=600,
-        conn_health_checks=True,
-        ssl_require=True,
-    )
-}
-
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
