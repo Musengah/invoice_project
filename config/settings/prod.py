@@ -2,8 +2,6 @@ import os
 
 import dj_database_url
 
-from dotenv import load_dotenv
-
 from .base import *  # noqa: F401,F403
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() == "true"
@@ -12,11 +10,9 @@ CSRF_TRUSTED_ORIGINS = [
     o for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o
 ]
 
-load_dotenv()
-
 DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
+    "default": dj_database_url.config(
+        default=os.environ.get("DATABASE_URL", "sqlite:///db.sqlite3"),
         conn_max_age=600,
         conn_health_checks=True,
         ssl_require=True,
