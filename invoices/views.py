@@ -1,9 +1,12 @@
+import hashlib
 from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import LoginView
+from django.core.cache import cache
 from django.db.models import Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -38,6 +41,47 @@ def signup(request):
     else:
         form = SignUpForm()
     return render(request, "invoices/signup.html", {"form": form})
+
+
+LOGIN_MAX_ATTEMPTS = 5
+LOGIN_LOCKOUT_SECONDS = 15 * 60
+
+
+class RateLimitedLoginView(LoginView):
+    """Login that locks a username+IP pair after repeated failed attempts.
+
+    Uses the default cache (local memory), which suits the single-instance
+    free-tier deployment this app targets.
+    """
+
+    def _fail_key(self):
+        username = self.request.POST.get("username", "").strip().lower()
+        ip = self.request.META.get("REMOTE_ADDR", "")
+        digest = hashlib.sha256(f"{username}|{ip}".encode()).hexdigest()[:32]
+        return f"login-fails:{digest}"
+
+    def post(self, request, *args, **kwargs):
+        if cache.get(self._fail_key(), 0) >= LOGIN_MAX_ATTEMPTS:
+            form = self.get_form()
+            form.add_error(
+                None, "Too many failed login attempts. Try again in 15 minutes."
+            )
+            return self.form_invalid(form)
+        return super().post(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        cache.delete(self._fail_key())
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        # Only failed credentials (a "__all__" error) count toward the limit.
+        if form.errors.get("__all__"):
+            key = self._fail_key()
+            try:
+                cache.incr(key)
+            except ValueError:
+                cache.set(key, 1, LOGIN_LOCKOUT_SECONDS)
+        return super().form_invalid(form)
 
 
 @login_required
@@ -177,10 +221,15 @@ def invoice_create(request):
             return redirect("invoice_detail", pk=invoice.pk)
     else:
         today = timezone.localdate()
-        form = InvoiceForm(
-            business=business,
-            initial={"issue_date": today, "due_date": today + timedelta(days=14)},
-        )
+        initial = {"issue_date": today, "due_date": today + timedelta(days=14)}
+        # Allow ?client=<id> (e.g. the "Invoice" button on the clients page)
+        # to preselect the client.
+        client_id = request.GET.get("client", "")
+        if client_id.isdigit():
+            client = business.clients.filter(pk=client_id).first()
+            if client:
+                initial["client"] = client.pk
+        form = InvoiceForm(business=business, initial=initial)
         formset = InvoiceItemFormSet()
     return render(
         request,
@@ -271,7 +320,7 @@ def invoice_pdf(request, pk):
 def payment_add(request, pk):
     invoice = get_object_or_404(Invoice, pk=pk, business=request.user.business)
     if request.method == "POST":
-        form = PaymentForm(request.POST)
+        form = PaymentForm(request.POST, invoice=invoice)
         if form.is_valid():
             payment = form.save(commit=False)
             payment.invoice = invoice
@@ -288,7 +337,8 @@ def payment_add(request, pk):
             return redirect("invoice_detail", pk=invoice.pk)
     else:
         form = PaymentForm(
-            initial_amount=invoice.balance if invoice.balance > ZERO else None
+            invoice=invoice,
+            initial_amount=invoice.balance if invoice.balance > ZERO else None,
         )
     return render(
         request,
