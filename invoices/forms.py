@@ -3,8 +3,11 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.forms import BaseInlineFormSet, inlineformset_factory
 from django.utils import timezone
+from PIL import Image
 
 from .models import BusinessProfile, Client, Invoice, InvoiceItem, Payment
+
+MAX_LOGO_MB = 2
 
 DATE_WIDGET = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
 
@@ -34,6 +37,20 @@ class BusinessProfileForm(forms.ModelForm):
         widgets = {
             "vat_rate": forms.NumberInput(attrs={"step": "0.01", "min": "0", "max": "100"}),
         }
+
+    def clean_logo(self):
+        """Reject oversized or non-image uploads early (2 MB limit)."""
+        logo = self.cleaned_data.get("logo")
+        if not logo or not hasattr(logo, "size"):
+            return logo
+        if logo.size > MAX_LOGO_MB * 1024 * 1024:
+            raise forms.ValidationError(f"Logo must be smaller than {MAX_LOGO_MB} MB.")
+        try:
+            Image.open(logo).verify()
+        except Exception:
+            raise forms.ValidationError("Upload a valid image (PNG, JPG or GIF).")
+        logo.seek(0)
+        return logo
 
 
 class ClientForm(forms.ModelForm):
@@ -96,8 +113,21 @@ class PaymentForm(forms.ModelForm):
             "amount": forms.NumberInput(attrs={"step": "0.01", "min": "0"}),
         }
 
-    def __init__(self, *args, initial_amount=None, **kwargs):
+    def __init__(self, *args, invoice=None, initial_amount=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.invoice = invoice
         if initial_amount is not None:
             self.fields["amount"].initial = initial_amount
         self.fields["date"].initial = timezone.localdate()
+
+    def clean_amount(self):
+        """Cap payments at the invoice's outstanding balance."""
+        amount = self.cleaned_data.get("amount")
+        if amount is None or self.invoice is None:
+            return amount
+        balance = self.invoice.balance
+        if amount > balance:
+            raise forms.ValidationError(
+                f"Amount exceeds the outstanding balance of {balance:,.2f}."
+            )
+        return amount
