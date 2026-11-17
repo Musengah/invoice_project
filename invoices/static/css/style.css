@@ -122,6 +122,17 @@ h1, h2, h3 { color: var(--brand-dark); }
 
 .inline-form { display: inline; }
 
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.btn:focus-visible { outline: 2px solid var(--brand-dark); }
+
 .card {
   background: var(--card);
   border: 1px solid var(--line);
@@ -315,4 +326,6 @@ h1, h2, h3 { color: var(--brand-dark); }
 @media (max-width: 640px) {
   .topnav { flex-direction: column; align-items: flex-start; }
   .page-head h1 { font-size: 1.3rem; }
+  /* Wide tables scroll horizontally instead of stretching the page. */
+  .table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
