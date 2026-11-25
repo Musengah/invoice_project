@@ -3,7 +3,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import messages
-from django.contrib.auth import login
+from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.core.cache import cache
@@ -17,12 +17,13 @@ from xhtml2pdf import pisa
 from .forms import (
     BusinessProfileForm,
     ClientForm,
+    ForgotPasswordForm,
     InvoiceForm,
     InvoiceItemFormSet,
     PaymentForm,
     SignUpForm,
 )
-from .models import Invoice, Payment, format_money
+from .models import Invoice, PasswordResetRequest, Payment, format_money
 from .utils import allocate_invoice_number
 
 ZERO = Decimal("0.00")
@@ -41,6 +42,40 @@ def signup(request):
     else:
         form = SignUpForm()
     return render(request, "invoices/signup.html", {"form": form})
+
+
+def forgot_password(request):
+    """Admin-mediated password recovery: queue a request for the admin."""
+    if request.user.is_authenticated:
+        return redirect("dashboard")
+    if request.method == "POST":
+        # Light throttle so the public form can't be used to spam the queue.
+        ip_key = "pwreset:" + hashlib.sha256(
+            request.META.get("REMOTE_ADDR", "").encode()
+        ).hexdigest()[:32]
+        if cache.get(ip_key, 0) >= 3:
+            messages.error(request, "Too many requests. Please try again later.")
+            return redirect("login")
+        form = ForgotPasswordForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data["email"].strip().lower()
+            user = (
+                get_user_model()
+                .objects.filter(email__iexact=email, is_active=True)
+                .first()
+            )
+            PasswordResetRequest.objects.create(email=email, user=user)
+            cache.set(ip_key, cache.get(ip_key, 0) + 1, 600)
+            # Same message either way, so nobody can probe for accounts.
+            messages.success(
+                request,
+                "If an account exists for that email, your request has been "
+                "sent to the system administrator, who will contact you.",
+            )
+            return redirect("login")
+    else:
+        form = ForgotPasswordForm()
+    return render(request, "invoices/forgot_password.html", {"form": form})
 
 
 LOGIN_MAX_ATTEMPTS = 5

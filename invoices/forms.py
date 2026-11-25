@@ -27,6 +27,10 @@ class SignUpForm(UserCreationForm):
         return user
 
 
+class ForgotPasswordForm(forms.Form):
+    email = forms.EmailField(label="Your account email")
+
+
 class BusinessProfileForm(forms.ModelForm):
     class Meta:
         model = BusinessProfile

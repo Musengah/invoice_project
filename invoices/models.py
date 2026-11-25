@@ -193,6 +193,33 @@ class Payment(models.Model):
         return format_money(self.amount, self.invoice.currency)
 
 
+class PasswordResetRequest(models.Model):
+    """A forgot-password submission awaiting manual handling by an admin."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        HANDLED = "handled", "Handled"
+
+    email = models.EmailField()
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="password_reset_requests",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.PENDING
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.email} ({self.get_status_display()})"
+
+
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_business_profile(sender, instance, created, **kwargs):
     """Every new user automatically gets a business profile."""

@@ -41,6 +41,10 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
+        # Project-level templates. These take priority over app templates,
+        # which matters here because django.contrib.admin ships its own
+        # registration/password_reset_* pages that would otherwise be
+        # found first and win over the ones in the invoices app.
         "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
@@ -78,6 +82,13 @@ STORAGES = {
 }
 
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@example.com")
+
+# Choose how "Forgot your password?" works:
+#   "admin" (default): submissions are queued as requests that the system
+#     administrator handles manually in the Django admin. No email needed.
+#   "email": users receive a self-service reset link by email (requires a
+#     working email backend, e.g. Brevo on Render free or Gmail SMTP).
+PASSWORD_RESET_MODE = os.environ.get("PASSWORD_RESET_MODE", "admin")
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "dashboard"
