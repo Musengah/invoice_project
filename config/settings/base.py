@@ -45,7 +45,7 @@ TEMPLATES = [
         # which matters here because django.contrib.admin ships its own
         # registration/password_reset_* pages that would otherwise be
         # found first and win over the ones in the invoices app.
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
