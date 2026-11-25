@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import BusinessProfile, Client, Invoice, InvoiceItem, Payment
+from .models import (
+    BusinessProfile,
+    Client,
+    Invoice,
+    InvoiceItem,
+    PasswordResetRequest,
+    Payment,
+)
 
 
 class InvoiceItemInline(admin.TabularInline):
@@ -40,3 +47,15 @@ class BusinessProfileAdmin(admin.ModelAdmin):
 class PaymentAdmin(admin.ModelAdmin):
     list_display = ("invoice", "amount", "date", "method")
     list_filter = ("method",)
+
+
+@admin.register(PasswordResetRequest)
+class PasswordResetRequestAdmin(admin.ModelAdmin):
+    list_display = ("email", "status", "created_at", "user")
+    list_filter = ("status",)
+    search_fields = ("email",)
+    actions = ["mark_handled"]
+
+    @admin.action(description="Mark selected requests as handled")
+    def mark_handled(self, request, queryset):
+        queryset.update(status=PasswordResetRequest.Status.HANDLED)
