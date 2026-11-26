@@ -26,7 +26,7 @@ from .forms import (
     PaymentForm,
     SignUpForm,
 )
-from .models import Invoice, PasswordResetRequest, Payment, format_money
+from .models import Invoice, PasswordResetRequest, Payment, format_money, Client
 from .utils import allocate_invoice_number
 
 ZERO = Decimal("0.00")
