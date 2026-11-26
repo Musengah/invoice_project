@@ -135,3 +135,9 @@ class PaymentForm(forms.ModelForm):
                 f"Amount exceeds the outstanding balance of {balance:,.2f}."
             )
         return amount
+
+
+class InvoiceEmailForm(forms.Form):
+    to = forms.EmailField(label="Send to")
+    subject = forms.CharField(max_length=200)
+    message = forms.CharField(widget=forms.Textarea, required=False)

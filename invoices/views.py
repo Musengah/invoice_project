@@ -1,12 +1,14 @@
 import hashlib
 from datetime import timedelta
 from decimal import Decimal
+from io import BytesIO
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.core.cache import cache
+from django.core.mail import EmailMessage
 from django.db.models import Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -18,6 +20,7 @@ from .forms import (
     BusinessProfileForm,
     ClientForm,
     ForgotPasswordForm,
+    InvoiceEmailForm,
     InvoiceForm,
     InvoiceItemFormSet,
     PaymentForm,
@@ -328,13 +331,8 @@ def invoice_mark_sent(request, pk):
     return redirect("invoice_detail", pk=invoice.pk)
 
 
-@login_required
-def invoice_pdf(request, pk):
-    invoice = get_object_or_404(
-        Invoice.objects.select_related("client", "business"),
-        pk=pk,
-        business=request.user.business,
-    )
+def _render_invoice_pdf_bytes(invoice):
+    """Render the invoice PDF in memory and return its bytes, or None."""
     context = {"invoice": invoice}
     if invoice.business.logo:
         try:
@@ -342,12 +340,26 @@ def invoice_pdf(request, pk):
         except Exception:
             pass
     html = render_to_string("invoices/pdf/invoice_pdf.html", context)
-    response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = f'inline; filename="{invoice.number}.pdf"'
-    status = pisa.CreatePDF(html, dest=response, encoding="utf-8")
+    pdf = BytesIO()
+    status = pisa.CreatePDF(html, dest=pdf, encoding="utf-8")
     if status.err:
+        return None
+    return pdf.getvalue()
+
+
+@login_required
+def invoice_pdf(request, pk):
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("client", "business"),
+        pk=pk,
+        business=request.user.business,
+    )
+    pdf_bytes = _render_invoice_pdf_bytes(invoice)
+    if pdf_bytes is None:
         messages.error(request, "Could not generate the PDF.")
         return redirect("invoice_detail", pk=invoice.pk)
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="{invoice.number}.pdf"'
     return response
 
 
@@ -379,4 +391,70 @@ def payment_add(request, pk):
         request,
         "invoices/form.html",
         {"form": form, "title": f"Record payment: {invoice.number}", "submit_label": "Save payment"},
+    )
+
+
+@login_required
+def invoice_email(request, pk):
+    """Email the invoice PDF to the client (or any address)."""
+    invoice = get_object_or_404(
+        Invoice.objects.select_related("client", "business"),
+        pk=pk,
+        business=request.user.business,
+    )
+    initial = {
+        "to": invoice.client.email or "",
+        "subject": f"Invoice {invoice.number} from {invoice.business.name or 'SwiftInvoice'}",
+        "message": (
+            f"Dear {invoice.client.name},\n\n"
+            f"Please find attached invoice {invoice.number} "
+            f"({invoice.total_display}), due "
+            f"{invoice.due_date.strftime('%d %B %Y')}. "
+            f"Balance due: {invoice.balance_display}.\n\n"
+        ),
+    }
+    if invoice.business.payment_details:
+        initial["message"] += (
+            f"Payment details:\n{invoice.business.payment_details}\n\n"
+        )
+    initial["message"] += f"Thank you,\n{invoice.business.name or 'SwiftInvoice'}"
+
+    if request.method == "POST":
+        form = InvoiceEmailForm(request.POST)
+        if form.is_valid():
+            pdf_bytes = _render_invoice_pdf_bytes(invoice)
+            if pdf_bytes is None:
+                messages.error(request, "Could not generate the PDF.")
+                return redirect("invoice_detail", pk=invoice.pk)
+            email = EmailMessage(
+                subject=form.cleaned_data["subject"],
+                body=form.cleaned_data["message"],
+                to=[form.cleaned_data["to"]],
+                reply_to=[invoice.business.email] if invoice.business.email else None,
+            )
+            email.attach(f"{invoice.number}.pdf", pdf_bytes, "application/pdf")
+            try:
+                email.send(fail_silently=False)
+            except Exception:
+                messages.error(
+                    request,
+                    "Sending failed. Check the server's email settings "
+                    "(BREVO_API_KEY or SMTP credentials) and try again.",
+                )
+                return redirect("invoice_detail", pk=invoice.pk)
+            messages.success(
+                request,
+                f"Invoice {invoice.number} emailed to {form.cleaned_data['to']}.",
+            )
+            return redirect("invoice_detail", pk=invoice.pk)
+    else:
+        form = InvoiceEmailForm(initial=initial)
+    return render(
+        request,
+        "invoices/form.html",
+        {
+            "form": form,
+            "title": f"Email invoice: {invoice.number}",
+            "submit_label": "Send email",
+        },
     )

@@ -10,6 +10,9 @@
   <div class="actions">
     <a href="{% url 'invoice_pdf' invoice.pk %}" class="btn">Download PDF</a>
     <a href="{% url 'invoice_edit' invoice.pk %}" class="btn btn-secondary">Edit</a>
+    {% if invoice.client.email %}
+    <a href="{% url 'invoice_email' invoice.pk %}" class="btn btn-secondary">Email invoice</a>
+    {% endif %}
     {% if invoice.status == 'draft' %}
     <form method="post" action="{% url 'invoice_mark_sent' invoice.pk %}" class="inline-form">
       {% csrf_token %}

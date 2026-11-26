@@ -1,3 +1,4 @@
+import base64
 import json
 import re
 import urllib.request
@@ -47,6 +48,20 @@ class BrevoEmailBackend(BaseEmailBackend):
             payload["htmlContent"] = message.body
         else:
             payload["textContent"] = message.body
+        if message.attachments:
+            payload["attachment"] = []
+            for item in message.attachments:
+                filename, content = item[0], item[1]
+                mimetype = item[2] if len(item) > 2 else None
+                if isinstance(content, str):
+                    content = content.encode("utf-8")
+                entry = {
+                    "name": filename,
+                    "content": base64.b64encode(content).decode("ascii"),
+                }
+                if mimetype:
+                    entry["contentType"] = mimetype
+                payload["attachment"].append(entry)
 
         request = urllib.request.Request(
             BREVO_API_URL,
